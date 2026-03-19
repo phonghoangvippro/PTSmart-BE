@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\ResourceController;
+use App\Http\Controllers\SettingController;
 
 /* |-------------------------------------------------------------------------- | Public Routes (No Auth) |-------------------------------------------------------------------------- */
 
@@ -36,6 +37,9 @@ Route::prefix('auth')->group(function () {
 
 // Home
 Route::get('/home', [HomeController::class , 'index']);
+
+// Settings
+Route::get('/settings', [SettingController::class , 'index']);
 
 // Products
 Route::prefix('products')->group(function () {
@@ -275,6 +279,13 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
             Route::post('/', [ResourceController::class , 'branchStore']);
             Route::put('/{branch}', [ResourceController::class , 'branchUpdate']);
             Route::delete('/{branch}', [ResourceController::class , 'branchDestroy']);
+        }
+        );
+
+        // Settings (Admin)
+        Route::prefix('settings')->group(function () {
+            Route::get('/', [SettingController::class , 'index']);
+            Route::post('/', [SettingController::class , 'update']);
         }
         );
     });
