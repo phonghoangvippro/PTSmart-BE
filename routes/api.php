@@ -63,6 +63,7 @@ Route::get('/brands', [BrandController::class , 'index']);
 Route::prefix('flash-sales')->group(function () {
     Route::get('/active', [FlashSaleController::class , 'active']);
     Route::get('/upcoming', [FlashSaleController::class , 'upcoming']);
+    Route::get('/page', [FlashSaleController::class , 'page']);
 });
 
 // Promotions
