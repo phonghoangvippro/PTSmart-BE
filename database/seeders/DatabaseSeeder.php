@@ -52,6 +52,7 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,
             PromotionSeeder::class,
             ArticleSeeder::class,
+            WishlistSeeder::class,
             OrderSeeder::class,
             SettingSeeder::class,
         ]);
