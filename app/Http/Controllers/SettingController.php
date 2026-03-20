@@ -20,11 +20,12 @@ class SettingController extends Controller
             'site_name' => 'nullable|string|max:255',
             'support_email' => 'nullable|email|max:255',
             'hotline' => 'nullable|string|max:50',
+            'working_hours' => 'nullable|string|max:255',
             'default_shipping_fee' => 'nullable|numeric|min:0',
             'site_logo' => 'nullable|image|max:2048', // 2MB
         ]);
 
-        $keys = ['site_name', 'support_email', 'hotline', 'default_shipping_fee'];
+        $keys = ['site_name', 'support_email', 'hotline', 'working_hours', 'default_shipping_fee'];
 
         foreach ($keys as $key) {
             if ($request->has($key)) {

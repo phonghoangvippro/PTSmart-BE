@@ -51,6 +51,7 @@ class DatabaseSeeder extends Seeder
             BrandSeeder::class,
             ProductSeeder::class,
             OrderSeeder::class,
+            SettingSeeder::class,
         ]);
 
         // Banners

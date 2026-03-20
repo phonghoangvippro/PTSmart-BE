@@ -7,6 +7,7 @@ use App\Models\Banner;
 use App\Models\Category;
 use App\Models\FlashSale;
 use App\Models\Product;
+use App\Models\Promotion;
 use Illuminate\Http\JsonResponse;
 
 class HomeController extends Controller
@@ -46,6 +47,27 @@ class HomeController extends Controller
             ->limit(12)
             ->get();
 
+        // Sản phẩm giảm giá sâu: có sale_price, sắp xếp theo % giảm giá cao nhất
+        $deepDiscountProducts = Product::active()
+            ->whereNotNull('sale_price')
+            ->where('sale_price', '>', 0)
+            ->where('sale_price', '<', \DB::raw('price'))
+            ->with(['category:id,name', 'brand:id,name'])
+            ->orderByRaw('((price - sale_price) / price) DESC')
+            ->limit(10)
+            ->get()
+            ->map(function ($product) {
+                $product->discount_percent = $product->price > 0
+                    ? round((($product->price - $product->sale_price) / $product->price) * 100)
+                    : 0;
+                return $product;
+            });
+
+        // Chương trình ưu đãi lớn
+        $promotions = Promotion::active()
+            ->with('products:id,name,slug,thumbnail,price,sale_price')
+            ->get();
+
         return response()->json([
             'banners' => $banners,
             'categories' => $categories,
@@ -53,6 +75,8 @@ class HomeController extends Controller
             'featured_products' => $featuredProducts,
             'new_products' => $newProducts,
             'best_sellers' => $bestSellers,
+            'deep_discount_products' => $deepDiscountProducts,
+            'promotions' => $promotions,
         ]);
     }
 }
