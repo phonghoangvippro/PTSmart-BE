@@ -12,7 +12,7 @@ class ProductController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Product::active()->with(['category', 'brand']);
+        $query = Product::active()->with(['category:id,name,slug', 'brand:id,name']);
 
         // Search
         if ($search = $request->input('search')) {
@@ -22,14 +22,20 @@ class ProductController extends Controller
             });
         }
 
-        // Filter by category
+        // Filter by category (hỗ trợ cả id và slug)
         if ($categoryId = $request->input('category_id')) {
             $query->where('category_id', $categoryId);
         }
+        if ($categorySlug = $request->input('category')) {
+            $query->whereHas('category', fn($q) => $q->where('slug', $categorySlug));
+        }
 
-        // Filter by brand
+        // Filter by brand (hỗ trợ cả id và name)
         if ($brandId = $request->input('brand_id')) {
             $query->where('brand_id', $brandId);
+        }
+        if ($brandName = $request->input('brand')) {
+            $query->whereHas('brand', fn($q) => $q->where('name', $brandName));
         }
 
         // Filter by price range
@@ -38,6 +44,23 @@ class ProductController extends Controller
         }
         if ($maxPrice = $request->input('max_price')) {
             $query->where('price', '<=', $maxPrice);
+        }
+
+        // Filter by rating (vd: rating=4 → lấy SP có rating >= 4)
+        if ($rating = $request->input('rating')) {
+            $query->where('rating_avg', '>=', $rating);
+        }
+
+        // Filter chỉ SP đang giảm giá
+        if ($request->input('on_sale')) {
+            $query->whereNotNull('sale_price')
+                  ->where('sale_price', '>', 0)
+                  ->where('sale_price', '<', DB::raw('price'));
+        }
+
+        // Filter SP nổi bật
+        if ($request->input('is_featured')) {
+            $query->where('is_featured', true);
         }
 
         // Sort
@@ -53,6 +76,14 @@ class ProductController extends Controller
                 break;
             case 'best_selling':
                 $query->orderByDesc('sold_count');
+                break;
+            case 'rating':
+                $query->orderByDesc('rating_avg');
+                break;
+            case 'discount':
+                $query->whereNotNull('sale_price')
+                      ->where('sale_price', '>', 0)
+                      ->orderByRaw('((price - sale_price) / price) DESC');
                 break;
             default:
                 $query->orderByDesc('created_at');
@@ -126,5 +157,39 @@ class ProductController extends Controller
         });
 
         return response()->json($products);
+    }
+
+    /**
+     * Gợi ý tìm kiếm (autocomplete) — response nhẹ, nhanh
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $request->validate([
+            'q' => 'required|string|min:1|max:100',
+        ]);
+
+        $keyword = $request->input('q');
+
+        $products = Product::active()
+            ->where(function ($query) use ($keyword) {
+                $query->where('name', 'like', "%{$keyword}%")
+                      ->orWhere('slug', 'like', "%{$keyword}%");
+            })
+            ->select('id', 'name', 'slug', 'thumbnail', 'price', 'sale_price', 'category_id')
+            ->with('category:id,name,slug')
+            ->orderByDesc('sold_count')
+            ->limit(8)
+            ->get();
+
+        // Gợi ý danh mục liên quan
+        $categories = \App\Models\Category::where('name', 'like', "%{$keyword}%")
+            ->select('id', 'name', 'slug')
+            ->limit(3)
+            ->get();
+
+        return response()->json([
+            'products' => $products,
+            'categories' => $categories,
+        ]);
     }
 }
