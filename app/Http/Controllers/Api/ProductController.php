@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -99,5 +100,31 @@ class ProductController extends Controller
             ->get();
 
         return response()->json(['data' => $products]);
+    }
+
+    /**
+     * Sản phẩm giảm giá sâu — dùng cho trang Khuyến mãi
+     */
+    public function discounted(Request $request): JsonResponse
+    {
+        $perPage = min($request->input('per_page', 10), 50);
+
+        $products = Product::active()
+            ->whereNotNull('sale_price')
+            ->where('sale_price', '>', 0)
+            ->where('sale_price', '<', DB::raw('price'))
+            ->with(['category:id,name', 'brand:id,name'])
+            ->orderByRaw('((price - sale_price) / price) DESC')
+            ->paginate($perPage);
+
+        // Thêm discount_percent vào mỗi sản phẩm
+        $products->getCollection()->transform(function ($product) {
+            $product->discount_percent = $product->price > 0
+                ? round((($product->price - $product->sale_price) / $product->price) * 100)
+                : 0;
+            return $product;
+        });
+
+        return response()->json($products);
     }
 }

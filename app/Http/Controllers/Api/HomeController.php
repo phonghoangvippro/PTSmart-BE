@@ -9,6 +9,7 @@ use App\Models\FlashSale;
 use App\Models\Product;
 use App\Models\Promotion;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
@@ -51,7 +52,7 @@ class HomeController extends Controller
         $deepDiscountProducts = Product::active()
             ->whereNotNull('sale_price')
             ->where('sale_price', '>', 0)
-            ->where('sale_price', '<', \DB::raw('price'))
+            ->where('sale_price', '<', DB::raw('price'))
             ->with(['category:id,name', 'brand:id,name'])
             ->orderByRaw('((price - sale_price) / price) DESC')
             ->limit(10)

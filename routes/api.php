@@ -45,6 +45,7 @@ Route::get('/settings', [SettingController::class , 'index']);
 Route::prefix('products')->group(function () {
     Route::get('/', [ProductController::class , 'index']);
     Route::get('/featured', [ProductController::class , 'featured']);
+    Route::get('/discounted', [ProductController::class , 'discounted']);
     Route::get('/{product}', [ProductController::class , 'show']);
     Route::get('/{product}/reviews', [ProductController::class , 'reviews']);
 });
