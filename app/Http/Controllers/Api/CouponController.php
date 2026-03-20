@@ -12,16 +12,29 @@ class CouponController extends Controller
 {
     public function myCoupons(Request $request): JsonResponse
     {
-        $coupons = UserCoupon::where('user_id', $request->user()->id)
-            ->with('coupon')
-            ->where('is_used', false)
-            ->get()
-            ->map(function ($uc) {
-                return $uc->coupon;
-            })
-            ->filter(fn($coupon) => $coupon && $coupon->isValid());
+        $userId = $request->user()->id;
 
-        return response()->json(['data' => $coupons->values()]);
+        // Lấy danh sách ID các mã giảm giá user ĐÃ DÙNG
+        $usedCouponIds = UserCoupon::where('user_id', $userId)
+            ->where('is_used', true)
+            ->pluck('coupon_id');
+
+        // Lấy tất cả mã giảm giá:
+        // 1. Đang hoạt động (status = 1)
+        // 2. Chưa hết hạn
+        // 3. User chưa dùng
+        // 4. Còn lượt sử dụng (usage_limit)
+        $coupons = Coupon::where('status', 1)
+            ->where('expired_at', '>', now())
+            ->whereNotIn('id', $usedCouponIds)
+            ->where(function ($query) {
+                $query->whereNull('usage_limit')
+                      ->orWhereRaw('used_count < usage_limit');
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json(['data' => $coupons]);
     }
 
     public function apply(Request $request): JsonResponse
