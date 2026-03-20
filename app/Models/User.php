@@ -36,6 +36,23 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Avatar luôn trả về full URL (có domain)
+     */
+    public function getAvatarAttribute($value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        // Nếu đã là URL đầy đủ thì trả về luôn
+        if (str_starts_with($value, 'http')) {
+            return $value;
+        }
+
+        return url($value);
+    }
+
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class);
