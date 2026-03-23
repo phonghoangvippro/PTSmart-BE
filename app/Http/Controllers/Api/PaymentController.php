@@ -104,7 +104,6 @@ class PaymentController extends Controller
 
         $order = $request->user()->orders()->findOrFail($validated['order_id']);
 
-        // MoMo payment integration (placeholder for actual implementation)
         $endpoint = config('services.momo.endpoint', 'https://test-payment.momo.vn/v2/gateway/api/create');
         $partnerCode = config('services.momo.partner_code', 'MOMO_DEMO');
         $accessKey = config('services.momo.access_key', 'DEMO_ACCESS');
@@ -113,8 +112,9 @@ class PaymentController extends Controller
         $orderId = $order->order_code . '_' . time();
         $orderInfo = 'Thanh toan don hang ' . $order->order_code;
         $amount = (string) $order->total;
+        // Chỉnh port FE tuỳ cấu hình (ví dụ lúc test user dùng 3001)
         $redirectUrl = config('services.momo.redirect_url', url('/payment/result'));
-        $ipnUrl = config('services.momo.ipn_url', url('/api/payments/momo/callback'));
+        $ipnUrl = config('services.momo.ipn_url', config('app.url') . '/api/payments/momo/callback');
         $requestId = time() . "";
         $requestType = "payWithMethod";
         $extraData = "";
@@ -122,20 +122,40 @@ class PaymentController extends Controller
         $rawHash = "accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=$requestType";
         $signature = hash_hmac("sha256", $rawHash, $secretKey);
 
-        return response()->json([
-            'payment_url' => $endpoint, // In real implementation, this would be the actual URL from MoMo API response
-            'request_data' => [
-                'partnerCode' => $partnerCode,
-                'orderId' => $orderId,
-                'amount' => $amount,
-                'orderInfo' => $orderInfo,
-                'redirectUrl' => $redirectUrl,
-                'ipnUrl' => $ipnUrl,
-                'requestId' => $requestId,
-                'requestType' => $requestType,
-                'signature' => $signature,
-            ],
-        ]);
+        $payload = [
+            'partnerCode' => $partnerCode,
+            'partnerName' => "Test",
+            "storeId" => "MomoTestStore",
+            'requestId' => $requestId,
+            'amount' => $amount,
+            'orderId' => $orderId,
+            'orderInfo' => $orderInfo,
+            'redirectUrl' => $redirectUrl,
+            'ipnUrl' => $ipnUrl,
+            'lang' => 'vi',
+            'extraData' => $extraData,
+            'requestType' => $requestType,
+            'signature' => $signature,
+        ];
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::post($endpoint, $payload);
+            $result = $response->json();
+
+            if (isset($result['payUrl'])) {
+                return response()->json([
+                    'payment_url' => $result['payUrl']
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Lỗi từ MoMo: ' . ($result['message'] ?? 'Unknown error'),
+                'momo_response' => $result
+            ], 400);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Lỗi kết nối đến MoMo: ' . $e->getMessage()], 500);
+        }
     }
 
     public function momoCallback(Request $request): JsonResponse
